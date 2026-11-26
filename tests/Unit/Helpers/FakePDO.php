@@ -27,7 +27,7 @@ class FakePDO extends PDO
     {
         $this->preparedQueries[] = $query;
 
-        $statement = new FakePdoStatement;
+        $statement = new FakePDOStatement;
         $statement->exceptionToThrow = $this->throwOnlyFor === null || str_contains($query, $this->throwOnlyFor)
             ? $this->exceptionToThrow
             : null;
