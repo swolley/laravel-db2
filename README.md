@@ -55,6 +55,9 @@ Simply add this code at the end of your ``config/database.php`` file:
         'database' => 'WRKRDBDIRE entry',
         'prefix' => '',
         'schema' => 'default schema',
+        // Quote Db2 reserved words (e.g. position, type) upper-cased, leaving other names bare.
+        // Default false keeps identifiers unquoted.
+        'quote_reserved_words' => false,
         'port' => 50000,
         'date_format' => 'Y-m-d H:i:s',
         // or 'Y-m-d H:i:s.u' / 'Y-m-d-H.i.s.u'...

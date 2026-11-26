@@ -3,6 +3,7 @@
 namespace Easi\DB2\Database\Schema\Grammars;
 
 use Easi\DB2\Database\DB2Connection;
+use Easi\DB2\Database\ReservedWords;
 use Illuminate\Database\Schema\ColumnDefinition;
 use RuntimeException;
 use Illuminate\Database\Query\Expression;
@@ -51,6 +52,9 @@ class DB2Grammar extends Grammar
     /**
      * Wrap a single string in keyword identifiers.
      *
+     * With the `quote_reserved_words` connection option on, a Db2 reserved word is quoted
+     * upper-cased (the catalog's folded form); everything else is left bare.
+     *
      * @param  string $value
      *
      * @return string
@@ -61,7 +65,13 @@ class DB2Grammar extends Grammar
             return $value;
         }
 
-        return str_replace('"', '""', $value);
+        $escaped = str_replace('"', '""', $value);
+
+        if ($this->connection->getConfig('quote_reserved_words') === true && ReservedWords::contains($value)) {
+            return '"' . strtoupper($escaped) . '"';
+        }
+
+        return $escaped;
     }
 
     /**
