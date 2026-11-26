@@ -86,6 +86,8 @@ return [
             'database' => 'WRKRDBDIRE entry',
             'prefix' => '',
             'schema' => 'default schema',
+            // Quote Db2 reserved words upper-cased ("POSITION"); other names stay bare.
+            'quote_reserved_words' => false,
             'port' => 50000,
             'date_format' => 'Y-m-d H:i:s',
             // Used to confirm strings to UTF-8
