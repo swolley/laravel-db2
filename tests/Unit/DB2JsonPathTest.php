@@ -22,26 +22,31 @@ describe('JSON path queries', function () {
     it('compiles a json selector with JSON_VALUE in lax mode', function () {
         $query = jsonQuery()->where('meta->color', 'red');
 
-        expect($query->toSql())->toBe('select * from products where JSON_VALUE(meta, \'lax $."color"\') = ?');
+        expect($query->toSql())->toBe('select * from products where JSON_VALUE(meta, \'lax $."color"\' RETURNING VARCHAR(4000)) = ?');
         expect($query->getBindings())->toBe(['red']);
     });
 
     it('compiles nested keys and array indexes', function () {
         expect(jsonQuery()->where('meta->items[0]->sku', 'A')->toSql())
-            ->toBe('select * from products where JSON_VALUE(meta, \'lax $."items"[0]."sku"\') = ?');
+            ->toBe('select * from products where JSON_VALUE(meta, \'lax $."items"[0]."sku"\' RETURNING VARCHAR(4000)) = ?');
     });
 
     it('quotes a key that contains a dot', function () {
         expect(jsonQuery()->where('meta->"a.b"', 'A')->toSql())
-            ->toBe('select * from products where JSON_VALUE(meta, \'lax $."a.b"\') = ?');
+            ->toBe('select * from products where JSON_VALUE(meta, \'lax $."a.b"\' RETURNING VARCHAR(4000)) = ?');
     });
 
     it('compares json booleans as true and false', function () {
         $query = jsonQuery()->where('meta->active', true);
 
-        expect($query->toSql())->toBe('select * from products where JSON_VALUE(meta, \'lax $."active"\') = \'true\'');
+        expect($query->toSql())->toBe('select * from products where JSON_VALUE(meta, \'lax $."active"\' RETURNING VARCHAR(4000)) = \'true\'');
         expect($query->getBindings())->toBe([]);
         expect(jsonQuery()->where('meta->active', false)->toSql())->toEndWith('= \'false\'');
+    });
+
+    it('returns a varchar, never the default LOB, for a selected json path', function () {
+        expect(jsonQuery()->select('meta->color')->toSql())
+            ->toBe('select JSON_VALUE(meta, \'lax $."color"\' RETURNING VARCHAR(4000)) from products');
     });
 
     it('extracts numbers as decimals when the value is numeric', function () {
@@ -52,7 +57,8 @@ describe('JSON path queries', function () {
     });
 
     it('does not add a numeric cast for numeric strings or plain columns', function () {
-        expect(jsonQuery()->where('meta->qty', '>', '3')->toSql())->not->toContain('RETURNING');
+        expect(jsonQuery()->where('meta->qty', '>', '3')->toSql())->not->toContain('DECFLOAT')
+            ->toContain('RETURNING VARCHAR(4000)');
         expect(jsonQuery()->where('sort_order', '>', 3)->toSql())
             ->toBe('select * from products where sort_order > ?');
     });
