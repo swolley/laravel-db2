@@ -47,3 +47,31 @@ describe('boolean defaults', function () {
             ->and($true)->not->toMatch('/default\s*(\)|$)/');
     });
 });
+
+describe('float columns', function () {
+    it('compiles a float with the default precision to double', function () {
+        expect(typesSql(fn (Blueprint $t) => $t->float('score')))
+            ->toBe('create table products (score double not null)');
+    });
+
+    it('compiles a single precision float to real', function () {
+        expect(typesSql(fn (Blueprint $t) => $t->float('score', 24)))
+            ->toBe('create table products (score real not null)')
+            ->and(typesSql(fn (Blueprint $t) => $t->float('score', 25)))
+            ->toBe('create table products (score double not null)');
+    });
+});
+
+describe('boolean check', function () {
+    it('wraps the column name inside the check', function () {
+        expect(typesSql(fn (Blueprint $t) => $t->boolean('is"on')))
+            ->toContain('check(is""on in(0, 1))');
+    });
+});
+
+describe('string defaults', function () {
+    it('escapes a single quote inside a string default', function () {
+        expect(typesSql(fn (Blueprint $t) => $t->string('label')->default("it's")))
+            ->toContain("default 'it''s'");
+    });
+});

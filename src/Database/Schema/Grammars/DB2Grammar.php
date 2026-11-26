@@ -762,7 +762,13 @@ class DB2Grammar extends Grammar
      */
     protected function typeFloat(Fluent $column): string
     {
-        return "decimal({$column->total}, {$column->places})";
+        // Laravel's float() carries a binary precision only: up to 24 bits is single
+        // precision (real), anything wider, or unset, is double precision.
+        if ($column->precision !== null && (int) $column->precision <= 24) {
+            return 'real';
+        }
+
+        return 'double';
     }
 
     /**
@@ -804,7 +810,7 @@ class DB2Grammar extends Grammar
     {
         $definition = 'smallint constraint %s_%s_%s check(%s in(0, 1)) %s';
 
-        return sprintf($definition, $column->type, $column->prefix, $column->name, $column->name, is_null($column->default) ? ' default 0' : '');
+        return sprintf($definition, $column->type, $column->prefix, $column->name, $this->wrap($column), is_null($column->default) ? ' default 0' : '');
     }
 
     /**
@@ -1127,7 +1133,7 @@ class DB2Grammar extends Grammar
             return $value;
         }
 
-        return "'" . strval($value) . "'";
+        return "'" . str_replace("'", "''", strval($value)) . "'";
     }
 
     /**

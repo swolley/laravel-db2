@@ -70,3 +70,19 @@ describe('inRandomOrder', function () {
         expect($connection->table('products')->inRandomOrder()->toSql())->toContain('order by RAND()');
     });
 });
+
+describe('insertOrIgnore portability', function () {
+    it('does not depend on the PHP 8.5 array_first function', function () {
+        $source = file_get_contents(dirname(__DIR__, 2) . '/src/Database/Query/Builder.php');
+
+        expect($source)->not->toMatch('/(?<![\w:>])array_first\(/')
+            ->and($source)->toContain('Arr::first(');
+    });
+
+    it('wraps a single associative row', function () {
+        [$connection, $pdo] = insertOrIgnoreConnection();
+
+        expect($connection->table('products')->insertOrIgnore(['sku' => 'a', 'name' => 'b']))->toBe(1)
+            ->and($pdo->preparedQueries)->toHaveCount(1);
+    });
+});
