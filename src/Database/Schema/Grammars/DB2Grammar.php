@@ -601,7 +601,13 @@ class DB2Grammar extends Grammar
      */
     protected function typeFloat(Fluent $column): string
     {
-        return "decimal({$column->total}, {$column->places})";
+        // Laravel's float() carries a binary precision only: up to 24 bits is single
+        // precision (real), anything wider, or unset, is double precision.
+        if ($column->precision !== null && (int) $column->precision <= 24) {
+            return 'real';
+        }
+
+        return 'double';
     }
 
     /**
