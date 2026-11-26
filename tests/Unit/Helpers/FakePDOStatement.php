@@ -12,10 +12,15 @@ class FakePDOStatement extends PDOStatement
 
     public array $results = [];
 
+    /** @var array<int|string, mixed> Values bound by position or name, in the order the connection bound them. */
+    public array $boundValues = [];
+
     public function __construct() {}
 
     public function bindValue($param, $value, $type = PDO::PARAM_STR): bool
     {
+        $this->boundValues[$param] = $value;
+
         return true;
     }
 
