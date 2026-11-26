@@ -14,16 +14,17 @@ class FakePDOStatement extends PDOStatement
 
     public string $query = '';
 
-    /** @var list<array{0: string, 1: list<mixed>}> */
+    /** @var list<array{0: string, 1: list<mixed>}> Shared with FakePDO::$bound. */
     public array $log = [];
 
-    private array $values = [];
+    /** @var array<int|string, mixed> Values bound by position or name, in the order the connection bound them. */
+    public array $boundValues = [];
 
     public function __construct() {}
 
     public function bindValue($param, $value, $type = PDO::PARAM_STR): bool
     {
-        $this->values[] = $value;
+        $this->boundValues[$param] = $value;
 
         return true;
     }
@@ -34,7 +35,7 @@ class FakePDOStatement extends PDOStatement
             throw $this->exceptionToThrow;
         }
 
-        $this->log[] = [$this->query, $this->values];
+        $this->log[] = [$this->query, array_values($this->boundValues)];
 
         return true;
     }

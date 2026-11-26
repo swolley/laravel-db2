@@ -14,9 +14,9 @@ class DB2ExpressCGrammar extends DB2Grammar
     public function compileTableExists($schema, $table): string
     {
         return sprintf(
-            'select count(*) as "exists" from syspublic.all_tables where table_schema = upper(%s) and table_name = upper(%s)',
-            $this->quoteString($schema ?? $this->connection->getDefaultSchema()),
-            $this->quoteString($table)
+            'select count(*) as "exists" from syspublic.all_tables where table_schema = %s and table_name = %s',
+            $this->quoteString(strtoupper($schema ?? $this->connection->getDefaultSchema())),
+            $this->quoteString(strtoupper($table))
         );
     }
 
@@ -27,6 +27,6 @@ class DB2ExpressCGrammar extends DB2Grammar
      */
     public function compileColumnExists(): string
     {
-        return 'select column_name from syspublic.all_ind_columns where table_schema = upper(?) and table_name = upper(?)';
+        return 'select column_name from syspublic.all_ind_columns where table_schema = ? and table_name = ?';
     }
 }

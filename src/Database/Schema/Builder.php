@@ -39,8 +39,8 @@ class Builder extends \Illuminate\Database\Schema\Builder
         }
 
         $results = $this->connection->select($sql, [
-            $schema,
-            $table,
+            strtoupper($schema),
+            strtoupper($table),
         ]);
 
         return array_values(array_map(function($r) {
@@ -93,7 +93,7 @@ class Builder extends \Illuminate\Database\Schema\Builder
     {
         $list = $this->connection->select(
             $this->grammar->compileGetAllTables(),
-            [$this->connection->getDefaultSchema()]
+            [strtoupper($this->connection->getDefaultSchema())]
         );
         return array_map(function($tableObject) {
             $tableObject = (array)$tableObject;

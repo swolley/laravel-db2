@@ -84,9 +84,9 @@ class DB2Grammar extends Grammar
     public function compileTableExists($schema, $table): string
     {
         return sprintf(
-            'select count(*) as "exists" from information_schema.tables where table_schema = upper(%s) and table_name = upper(%s)',
-            $this->quoteString($schema ?? $this->connection->getDefaultSchema()),
-            $this->quoteString($table)
+            'select count(*) as "exists" from information_schema.tables where table_schema = %s and table_name = %s',
+            $this->quoteString(strtoupper($schema ?? $this->connection->getDefaultSchema())),
+            $this->quoteString(strtoupper($table))
         );
     }
 
@@ -99,7 +99,7 @@ class DB2Grammar extends Grammar
      */
     public function compileColumnExists(): string
     {
-        return 'select column_name from qsys2.syscolumns where table_schema = upper(?) and table_name = upper(?) order by ordinal_position';
+        return 'select column_name from qsys2.syscolumns where table_schema = ? and table_name = ? order by ordinal_position';
     }
 
     /**
@@ -110,9 +110,9 @@ class DB2Grammar extends Grammar
     public function compileSchemas(): string
     {
         return sprintf(
-            'select schema_name as "name", case when schema_name = upper(%s) then 1 else 0 end as "default" '
+            'select schema_name as "name", case when schema_name = %s then 1 else 0 end as "default" '
             . 'from qsys2.sysschemas order by schema_name',
-            $this->quoteString($this->connection->getDefaultSchema())
+            $this->quoteString(strtoupper($this->connection->getDefaultSchema()))
         );
     }
 
@@ -155,9 +155,9 @@ class DB2Grammar extends Grammar
             'select column_name as "name", data_type as "type_name", length as "length", '
             . 'numeric_scale as "numeric_scale", is_nullable as "is_nullable", column_default as "column_default", '
             . 'has_default as "has_default", is_identity as "is_identity", coalesce(long_comment, column_text) as "comment" '
-            . 'from qsys2.syscolumns where %s and table_name = upper(%s) order by ordinal_position',
+            . 'from qsys2.syscolumns where %s and table_name = %s order by ordinal_position',
             $this->compileCatalogSchemaClause($schema, 'table_schema'),
-            $this->quoteString($table)
+            $this->quoteString(strtoupper($table))
         );
     }
 
@@ -178,15 +178,15 @@ class DB2Grammar extends Grammar
             'select i.index_name as "name", k.column_name as "column_name", k.ordinal_position as "ordinal_position", '
             . "'I' as \"kind\", i.is_unique as \"is_unique\" "
             . 'from qsys2.sysindexes i join qsys2.syskeys k on k.index_schema = i.index_schema and k.index_name = i.index_name '
-            . 'where %1$s and i.table_name = upper(%2$s) '
+            . 'where %1$s and i.table_name = %2$s '
             . 'union all '
             . 'select c.constraint_name, k.column_name, k.ordinal_position, '
             . "case c.constraint_type when 'PRIMARY KEY' then 'P' else 'U' end, 'U' "
             . 'from qsys2.syscst c join qsys2.syskeycst k on k.constraint_schema = c.constraint_schema and k.constraint_name = c.constraint_name '
-            . "where %3\$s and c.table_name = upper(%2\$s) and c.constraint_type in ('PRIMARY KEY', 'UNIQUE') "
+            . "where %3\$s and c.table_name = %2\$s and c.constraint_type in ('PRIMARY KEY', 'UNIQUE') "
             . 'order by 1, 3',
             $this->compileCatalogSchemaClause($schema, 'i.table_schema'),
-            $this->quoteString($table),
+            $this->quoteString(strtoupper($table)),
             $this->compileCatalogSchemaClause($schema, 'c.table_schema')
         );
     }
@@ -213,10 +213,10 @@ class DB2Grammar extends Grammar
             . 'join qsys2.syscst pc on pc.constraint_schema = r.unique_constraint_schema and pc.constraint_name = r.unique_constraint_name '
             . 'join qsys2.syskeycst pk on pk.constraint_schema = r.unique_constraint_schema '
             . 'and pk.constraint_name = r.unique_constraint_name and pk.ordinal_position = fk.ordinal_position '
-            . "where c.constraint_type = 'FOREIGN KEY' and %s and c.table_name = upper(%s) "
+            . "where c.constraint_type = 'FOREIGN KEY' and %s and c.table_name = %s "
             . 'order by c.constraint_name, fk.ordinal_position',
             $this->compileCatalogSchemaClause($schema, 'c.table_schema'),
-            $this->quoteString($table)
+            $this->quoteString(strtoupper($table))
         );
     }
 
@@ -237,7 +237,7 @@ class DB2Grammar extends Grammar
             $schemas = [$this->connection->getDefaultSchema()];
         }
 
-        $quoted = array_map(fn ($name) => 'upper(' . $this->quoteString($name) . ')', $schemas);
+        $quoted = array_map(fn ($name) => $this->quoteString(strtoupper($name)), $schemas);
 
         return count($quoted) === 1
             ? $column . ' = ' . $quoted[0]

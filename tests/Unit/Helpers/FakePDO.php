@@ -27,6 +27,9 @@ class FakePDO extends PDO
     /** @var list<string> Every statement prepared, in order. */
     public array $preparedQueries = [];
 
+    /** @var list<FakePDOStatement> The statement objects behind $preparedQueries, in the same order. */
+    public array $preparedStatements = [];
+
     private bool $inTransaction = false;
 
     /** @noinspection PhpMissingParentConstructorInspection */
@@ -48,6 +51,7 @@ class FakePDO extends PDO
         }
         $statement->log = &$this->bound;
         $statement->query = $query;
+        $this->preparedStatements[] = $statement;
 
         return $statement;
     }

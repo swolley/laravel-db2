@@ -24,64 +24,64 @@ function introspectionPdo(DB2Connection $connection): FakePDO
 
 describe('catalog queries', function () {
     it('lists schemas from QSYS2.SYSSCHEMAS and flags the default one', function () {
-        $sql = strtolower(introspectionConnection()->getSchemaGrammar()->compileSchemas());
+        $sql = introspectionConnection()->getSchemaGrammar()->compileSchemas();
 
-        expect($sql)->toContain('qsys2.sysschemas')
-            ->and($sql)->toContain("upper('test')");
+        expect(strtolower($sql))->toContain('qsys2.sysschemas')
+            ->and($sql)->toContain("schema_name = 'TEST'");
     });
 
     it('lists base tables from QSYS2.SYSTABLES for the default schema when none is given', function () {
-        $sql = strtolower(introspectionConnection()->getSchemaGrammar()->compileTables(null));
+        $sql = introspectionConnection()->getSchemaGrammar()->compileTables(null);
 
-        expect($sql)->toContain('qsys2.systables')
-            ->and($sql)->toContain("table_schema = upper('test')")
-            ->and($sql)->toContain("table_type in ('t', 'p')");
+        expect(strtolower($sql))->toContain('qsys2.systables')
+            ->and($sql)->toContain("table_schema = 'TEST'")
+            ->and(strtolower($sql))->toContain("table_type in ('t', 'p')");
     });
 
     it('accepts one schema or an array of schemas', function () {
         $grammar = introspectionConnection()->getSchemaGrammar();
 
-        expect(strtolower($grammar->compileTables('inventory')))->toContain("table_schema = upper('inventory')")
-            ->and(strtolower($grammar->compileTables(['inventory', 'users'])))
-            ->toContain("table_schema in (upper('inventory'), upper('users'))");
+        expect($grammar->compileTables('inventory'))->toContain("table_schema = 'INVENTORY'")
+            ->and($grammar->compileTables(['inventory', 'users']))
+            ->toContain("table_schema in ('INVENTORY', 'USERS')");
     });
 
     it('lists views from QSYS2.SYSVIEWS', function () {
-        $sql = strtolower(introspectionConnection()->getSchemaGrammar()->compileViews('inventory'));
+        $sql = introspectionConnection()->getSchemaGrammar()->compileViews('inventory');
 
-        expect($sql)->toContain('qsys2.sysviews')
-            ->and($sql)->toContain('view_definition')
-            ->and($sql)->toContain("table_schema = upper('inventory')");
+        expect(strtolower($sql))->toContain('qsys2.sysviews')
+            ->and(strtolower($sql))->toContain('view_definition')
+            ->and($sql)->toContain("table_schema = 'INVENTORY'");
     });
 
     it('reads columns from QSYS2.SYSCOLUMNS in ordinal order', function () {
-        $sql = strtolower(introspectionConnection()->getSchemaGrammar()->compileColumns('inventory', 'products'));
+        $sql = introspectionConnection()->getSchemaGrammar()->compileColumns('inventory', 'products');
 
-        expect($sql)->toContain('qsys2.syscolumns')
-            ->and($sql)->toContain("table_schema = upper('inventory')")
-            ->and($sql)->toContain("table_name = upper('products')")
-            ->and($sql)->toContain('order by ordinal_position');
+        expect(strtolower($sql))->toContain('qsys2.syscolumns')
+            ->and($sql)->toContain("table_schema = 'INVENTORY'")
+            ->and($sql)->toContain("table_name = 'PRODUCTS'")
+            ->and(strtolower($sql))->toContain('order by ordinal_position');
     });
 
     it('reads indexes from SYSINDEXES with SYSKEYS plus the key constraints', function () {
-        $sql = strtolower(introspectionConnection()->getSchemaGrammar()->compileIndexes(null, 'products'));
+        $sql = introspectionConnection()->getSchemaGrammar()->compileIndexes(null, 'products');
 
-        expect($sql)->toContain('qsys2.sysindexes')
-            ->and($sql)->toContain('qsys2.syskeys')
-            ->and($sql)->toContain('qsys2.syscst')
-            ->and($sql)->toContain('qsys2.syskeycst')
-            ->and($sql)->toContain("table_schema = upper('test')")
-            ->and($sql)->toContain("table_name = upper('products')");
+        expect(strtolower($sql))->toContain('qsys2.sysindexes')
+            ->and(strtolower($sql))->toContain('qsys2.syskeys')
+            ->and(strtolower($sql))->toContain('qsys2.syscst')
+            ->and(strtolower($sql))->toContain('qsys2.syskeycst')
+            ->and($sql)->toContain("table_schema = 'TEST'")
+            ->and($sql)->toContain("table_name = 'PRODUCTS'");
     });
 
     it('reads foreign keys from SYSREFCST with SYSKEYCST', function () {
-        $sql = strtolower(introspectionConnection()->getSchemaGrammar()->compileForeignKeys('inventory', 'order_lines'));
+        $sql = introspectionConnection()->getSchemaGrammar()->compileForeignKeys('inventory', 'order_lines');
 
-        expect($sql)->toContain('qsys2.sysrefcst')
-            ->and($sql)->toContain('qsys2.syskeycst')
-            ->and($sql)->toContain("'foreign key'")
-            ->and($sql)->toContain("table_schema = upper('inventory')")
-            ->and($sql)->toContain("table_name = upper('order_lines')");
+        expect(strtolower($sql))->toContain('qsys2.sysrefcst')
+            ->and(strtolower($sql))->toContain('qsys2.syskeycst')
+            ->and(strtolower($sql))->toContain("'foreign key'")
+            ->and($sql)->toContain("table_schema = 'INVENTORY'")
+            ->and($sql)->toContain("table_name = 'ORDER_LINES'");
     });
 });
 
@@ -212,6 +212,77 @@ describe('processors', function () {
         expect($foreignKeys)->toHaveCount(1)
             ->and($foreignKeys[0]['columns'])->toBe(['sku', 'warehouse'])
             ->and($foreignKeys[0]['foreign_columns'])->toBe(['sku', 'wh']);
+    });
+});
+
+describe('bound catalog names', function () {
+    it('never wraps a marker or a literal in a function', function () {
+        $statements = [introspectionConnection()->getSchemaGrammar()->compileGetAllTables()];
+
+        foreach (['db2_ibmi_odbc', 'db2_expressc_odbc'] as $driver) {
+            $connection = new DB2Connection(new FakePDO(), 'TESTDB', '', ['driver' => $driver, 'schema' => 'test']);
+            $connection->getSchemaBuilder();
+            $grammar = $connection->getSchemaGrammar();
+
+            array_push(
+                $statements,
+                $grammar->compileSchemas(),
+                $grammar->compileTables(['inventory', 'users']),
+                $grammar->compileViews(null),
+                $grammar->compileColumns('inventory', 'products'),
+                $grammar->compileIndexes(null, 'products'),
+                $grammar->compileForeignKeys('inventory', 'order_lines'),
+                $grammar->compileTableExists(null, 'products'),
+                $grammar->compileColumnExists(),
+            );
+        }
+
+        foreach ($statements as $sql) {
+            expect(strtolower($sql))->not->toContain('upper(')->not->toContain('lower(');
+        }
+    });
+
+    it('compares catalog columns with a bare marker', function () {
+        $grammar = introspectionConnection()->getSchemaGrammar();
+
+        expect($grammar->compileColumnExists())->toContain('table_schema = ? and table_name = ?')
+            ->and($grammar->compileGetAllTables())->toContain('table_schema = ?');
+    });
+
+    it('upper-cases the schema and table bound by getColumnListing', function () {
+        $connection = introspectionConnection([(object) ['column_name' => 'SKU']]);
+
+        $connection->getSchemaBuilder()->getColumnListing('Inventory.Products');
+
+        expect(array_values(introspectionPdo($connection)->preparedStatements[0]->boundValues))
+            ->toBe(['INVENTORY', 'PRODUCTS']);
+    });
+
+    it('upper-cases the default schema and an unqualified table bound by getColumnListing', function () {
+        $connection = introspectionConnection([(object) ['column_name' => 'SKU']]);
+
+        $connection->getSchemaBuilder()->getColumnListing('Products');
+
+        expect(array_values(introspectionPdo($connection)->preparedStatements[0]->boundValues))
+            ->toBe(['TEST', 'PRODUCTS']);
+    });
+
+    it('upper-cases the default schema bound by getAllTables', function () {
+        $connection = introspectionConnection();
+
+        $connection->getSchemaBuilder()->getAllTables();
+
+        expect(array_values(introspectionPdo($connection)->preparedStatements[0]->boundValues))
+            ->toBe(['TEST']);
+    });
+
+    it('upper-cases the literals hasTable compares against', function () {
+        $connection = introspectionConnection();
+
+        $connection->getSchemaBuilder()->hasTable('Products');
+
+        expect(introspectionPdo($connection)->preparedQueries[0])
+            ->toContain("table_schema = 'TEST' and table_name = 'PRODUCTS'");
     });
 });
 
