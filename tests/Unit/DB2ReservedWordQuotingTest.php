@@ -89,6 +89,15 @@ describe('reserved word quoting', function () {
             ->and($connection->query()->from('cache')->toSql())->toBe('select * from "CACHE"');
     });
 
+    it('quotes a reserved boolean column inside its check', function () {
+        $blueprint = new Blueprint(quotingConnection(true), 'products', function (Blueprint $table) {
+            $table->create();
+            $table->boolean('default');
+        });
+
+        expect($blueprint->toSql()[0])->toContain('check("DEFAULT" in(0, 1))');
+    });
+
     it('looks words up case-insensitively', function () {
         expect(ReservedWords::contains('Order'))->toBeTrue()
             ->and(ReservedWords::contains('sku'))->toBeFalse();

@@ -834,7 +834,7 @@ class DB2Grammar extends Grammar
             $column->allowed
         ));
 
-        return sprintf('varchar(%d) check (%s in (%s))', $length, $this->wrap($column), $values);
+        return sprintf('%s check (%s in (%s))', $this->withCcsid("varchar($length)"), $this->wrap($column), $values);
     }
 
     /**
@@ -851,7 +851,7 @@ class DB2Grammar extends Grammar
         $values = array_map('strval', $column->allowed);
         $length = array_sum(array_map('strlen', $values)) + max(count($values) - 1, 0);
 
-        return 'varchar(' . max($length, 1) . ')';
+        return $this->withCcsid('varchar(' . max($length, 1) . ')');
     }
 
     /**

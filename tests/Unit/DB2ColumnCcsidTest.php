@@ -50,6 +50,17 @@ describe('column ccsid', function () {
             . 'ref char(36) ccsid 1208 not null)');
     });
 
+    it('tags enum and set columns before their check', function () {
+        $sql = ccsidSql(1208, function (Blueprint $t) {
+            $t->enum('status', ['draft', 'published']);
+            $t->set('flags', ['a', 'bb']);
+        });
+
+        expect($sql)->toBe('create table products ('
+            . "status varchar(9) ccsid 1208 check (status in ('draft', 'published')) not null, "
+            . 'flags varchar(4) ccsid 1208 not null)');
+    });
+
     it('leaves numeric, date, binary and blob columns alone', function () {
         $sql = ccsidSql(1208, function (Blueprint $t) {
             $t->integer('qty');
