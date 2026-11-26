@@ -1050,6 +1050,6 @@ EOT;
      */
     public function supportsSchemaTransactions(): bool
     {
-        return (bool) $this->connection->getConfig('schema_transactions');
+        return filter_var($this->connection->getConfig('schema_transactions'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
     }
 }

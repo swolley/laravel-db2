@@ -34,3 +34,21 @@ it('keeps migrations unwrapped when the option is explicitly off', function () {
 
     expect($grammar->supportsSchemaTransactions())->toBeFalse();
 });
+
+it('reads the schema_transactions option as a boolean', function (mixed $value, bool $expected) {
+    $grammar = schemaTransactionsConnection(['schema_transactions' => $value])->getSchemaGrammar();
+
+    expect($grammar->supportsSchemaTransactions())->toBe($expected);
+})->with([
+    'boolean true' => [true, true],
+    'string true' => ['true', true],
+    'string 1' => ['1', true],
+    'integer 1' => [1, true],
+    'boolean false' => [false, false],
+    'string false' => ['false', false],
+    'string 0' => ['0', false],
+    'integer 0' => [0, false],
+    'empty string' => ['', false],
+    'null' => [null, false],
+    'garbage' => ['yes please', false],
+]);
