@@ -486,5 +486,160 @@ class DB2Grammar extends Grammar
         return ($type ?? DB2ParameterType::forColumn([$value]))->placeholder();
     }
 
+    /**
+     * Wrap the given JSON selector as a JSON_VALUE call in lax mode.
+     *
+     * @param  string  $value
+     * @return string
+     */
+    protected function wrapJsonSelector($value): string
+    {
+        [$field, $path] = $this->wrapJsonFieldAndPath($value);
 
+        return 'JSON_VALUE('.$field.$path.')';
+    }
+
+    /**
+     * Wrap the given JSON path as a lax SQL/JSON path literal.
+     *
+     * @param  string  $value
+     * @param  string  $delimiter
+     * @return string
+     */
+    protected function wrapJsonPath($value, $delimiter = '->'): string
+    {
+        return "'lax ".substr(parent::wrapJsonPath($value, $delimiter), 1);
+    }
+
+    /**
+     * Wrap a JSON path segment, keeping a key the caller already quoted.
+     *
+     * @param  string  $segment
+     * @return string
+     */
+    protected function wrapJsonPathSegment($segment): string
+    {
+        if (strlen($segment) > 1 && str_starts_with($segment, '"') && str_ends_with($segment, '"')) {
+            return $segment;
+        }
+
+        return parent::wrapJsonPathSegment($segment);
+    }
+
+    /**
+     * Compare a JSON boolean as the JSON_VALUE string it produces.
+     *
+     * @param  string  $value
+     * @return string
+     */
+    protected function wrapJsonBooleanValue($value): string
+    {
+        return "'".$value."'";
+    }
+
+    /**
+     * Compile a basic where clause, extracting JSON numbers as decimals.
+     *
+     * @param  Builder  $query
+     * @param  array  $where
+     * @return string
+     */
+    protected function whereBasic(Builder $query, $where): string
+    {
+        $column = $where['column'];
+
+        if (is_string($column) && $this->isJsonSelector($column) && (is_int($where['value']) || is_float($where['value']))) {
+            [$field, $path] = $this->wrapJsonFieldAndPath($column);
+
+            return 'JSON_VALUE('.$field.$path.' RETURNING DECFLOAT(34)) '
+                .str_replace('?', '??', $where['operator']).' '.$this->parameter($where['value']);
+        }
+
+        return parent::whereBasic($query, $where);
+    }
+
+    /**
+     * Compile a "where JSON contains" clause; an array value needs every element.
+     *
+     * @param  Builder  $query
+     * @param  array  $where
+     * @return string
+     */
+    protected function whereJsonContains(Builder $query, $where): string
+    {
+        $not = $where['not'] ? 'not ' : '';
+        $value = $where['value'];
+
+        if (! is_array($value)) {
+            return $not.$this->compileJsonContains($where['column'], $this->parameter($value));
+        }
+
+        if ($value === []) {
+            return $not.'(1 = 1)';
+        }
+
+        $clauses = array_map(
+            fn (): string => $this->compileJsonContains($where['column'], '?'),
+            $value,
+        );
+
+        return $not.(count($clauses) > 1 ? '('.implode(' AND ', $clauses).')' : $clauses[0]);
+    }
+
+    /**
+     * Compile a "JSON contains" test: some element of the array at the path equals the value.
+     *
+     * @param  string  $column
+     * @param  string  $value
+     * @return string
+     */
+    protected function compileJsonContains($column, $value): string
+    {
+        return 'EXISTS (SELECT 1 FROM '.$this->jsonTableOverElements($column).' WHERE JT.V = '.$value.')';
+    }
+
+    /**
+     * Compile a "JSON length" test as a count of the array elements at the path.
+     *
+     * @param  string  $column
+     * @param  string  $operator
+     * @param  string  $value
+     * @return string
+     */
+    protected function compileJsonLength($column, $operator, $value): string
+    {
+        return '(SELECT COUNT(*) FROM '.$this->jsonTableOverElements($column).') '.$operator.' '.$value;
+    }
+
+    /**
+     * Bind each scalar as the text JSON_TABLE yields for it; an array becomes one binding per element.
+     *
+     * @param  mixed  $binding
+     * @return string|list<string>
+     */
+    public function prepareBindingForJsonContains($binding): string|array
+    {
+        $toText = static fn (mixed $item): string => match (true) {
+            is_bool($item) => $item ? 'true' : 'false',
+            $item === null => 'null',
+            is_scalar($item) => (string) $item,
+            default => (string) json_encode($item, JSON_UNESCAPED_UNICODE),
+        };
+
+        return is_array($binding) ? array_map($toText, array_values($binding)) : $toText($binding);
+    }
+
+    /**
+     * Build the JSON_TABLE source listing the elements of the array at the column's path.
+     *
+     * @param  string  $column
+     * @return string
+     */
+    protected function jsonTableOverElements(string $column): string
+    {
+        $parts = explode('->', $column, 2);
+        $path = count($parts) > 1 ? $this->wrapJsonPath($parts[1]) : "'lax $'";
+
+        return 'JSON_TABLE('.$this->wrap($parts[0]).', '.substr($path, 0, -1)."[*]' COLUMNS (V VARCHAR(4000) PATH '$')) AS JT";
+    }
 }
