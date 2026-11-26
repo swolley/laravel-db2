@@ -655,7 +655,32 @@ class DB2Grammar extends Grammar
      */
     protected function typeEnum(Fluent $column): string
     {
-        return "enum('" . implode("', '", $column->allowed) . "')";
+        // Db2 has no enum type: a varchar sized in bytes (strlen) to the longest value,
+        // restricted to the allowed values by an inline check constraint.
+        $length = max(array_map('strlen', array_map('strval', $column->allowed)));
+        $values = implode(', ', array_map(
+            fn ($value): string => "'" . str_replace("'", "''", (string) $value) . "'",
+            $column->allowed
+        ));
+
+        return sprintf('varchar(%d) check (%s in (%s))', $length, $this->wrap($column), $values);
+    }
+
+    /**
+     * Create the column definition for a set type.
+     *
+     * Db2 has no set type: a varchar long enough to hold every value, separated by one byte each.
+     *
+     * @param Fluent $column
+     *
+     * @return string
+     */
+    protected function typeSet(Fluent $column): string
+    {
+        $values = array_map('strval', $column->allowed);
+        $length = array_sum(array_map('strlen', $values)) + max(count($values) - 1, 0);
+
+        return 'varchar(' . max($length, 1) . ')';
     }
 
     /**
@@ -929,11 +954,15 @@ class DB2Grammar extends Grammar
      *
      * @param mixed $value
      *
-     * @return float|bool|int|string|Expression
+     * @return float|int|string|Expression
      */
-    protected function getDefaultValue($value): float|bool|int|string|Expression
+    protected function getDefaultValue($value): float|int|string|Expression
     {
-        if ($value instanceof Expression || is_bool($value) || is_numeric($value)) {
+        if (is_bool($value)) {
+            return (int) $value;
+        }
+
+        if ($value instanceof Expression || is_numeric($value)) {
             return $value;
         }
 

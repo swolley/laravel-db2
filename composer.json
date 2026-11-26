@@ -42,6 +42,10 @@
     "require-dev": {
         "pestphp/pest": "^4.7"
     },
+    "suggest": {
+        "ext-pdo_odbc": "Required by the db2_ibmi_odbc, db2_zos_odbc and db2_expressc_odbc drivers",
+        "ext-pdo_ibm": "Required by the db2_ibmi_ibm driver"
+    },
     "autoload": {
     "psr-4": {
         "Easi\\DB2\\": "src/"
