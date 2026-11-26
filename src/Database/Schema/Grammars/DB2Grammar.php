@@ -1291,4 +1291,16 @@ EOT;
     {
         return 'drop view ' . $view;
     }
+
+    /**
+     * Whether migrations are wrapped in a transaction. Opt-in through the
+     * connection's `schema_transactions` option: it needs journaled tables and a
+     * commit mode other than *NONE on IBM i.
+     *
+     * @return bool
+     */
+    public function supportsSchemaTransactions(): bool
+    {
+        return filter_var($this->connection->getConfig('schema_transactions'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+    }
 }
