@@ -110,10 +110,41 @@ class Builder extends \Illuminate\Database\Schema\Builder
      */
     public function dropAllTables(): void
     {
+        $schema = $this->connection->getDefaultSchema();
+
+        // Foreign keys first, so that table order and self-references do not matter.
+        $foreignKeys = $this->connection->select($this->grammar->compileGetAllForeignKeys(), [$schema]);
+        foreach ($foreignKeys as $foreignKey) {
+            $foreignKey = (array) $foreignKey;
+            $this->connection->statement($this->grammar->compileDropConstraint(
+                $foreignKey['table_schema'],
+                $foreignKey['table_name'],
+                $foreignKey['constraint_name']
+            ));
+        }
+
         $tables = $this->getAllTables();
         foreach ($tables as $table)
         {
             $this->drop($table);
+        }
+    }
+
+    /**
+     * Drop all views from the default schema.
+     *
+     * @return void
+     */
+    public function dropAllViews(): void
+    {
+        $views = $this->connection->select(
+            $this->grammar->compileGetAllViews(),
+            [$this->connection->getDefaultSchema()]
+        );
+
+        foreach ($views as $view) {
+            $view = (array) $view;
+            $this->connection->statement($this->grammar->compileDropView($view['00001']));
         }
     }
 }

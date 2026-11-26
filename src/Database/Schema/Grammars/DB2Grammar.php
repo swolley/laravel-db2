@@ -1030,14 +1030,75 @@ EOT;
     }
 
     /**
-     * Compile the SQL needed to retrieve all table names.
+     * Compile the SQL needed to retrieve all base table names of a schema.
+     *
+     * Reads the Db2 for i catalog. Views, logical files, aliases and
+     * materialized query tables are excluded. One binding: the schema.
      *
      * @return string
      */
     public function compileGetAllTables(): string
     {
         return 'select trim(table_schema) || \'.\' || trim(table_name)
-                from information_schema.tables
-                where table_schema = upper(?) and table_type = \'BASE TABLE\'';
+                from qsys2.systables
+                where table_schema = ? and table_type in (\'T\', \'P\')';
+    }
+
+    /**
+     * Compile the SQL needed to retrieve all view names of a schema.
+     *
+     * One binding: the schema.
+     *
+     * @return string
+     */
+    public function compileGetAllViews(): string
+    {
+        return 'select trim(table_schema) || \'.\' || trim(table_name)
+                from qsys2.sysviews
+                where table_schema = ?';
+    }
+
+    /**
+     * Compile the SQL needed to retrieve all foreign keys of a schema.
+     *
+     * One binding: the schema.
+     *
+     * @return string
+     */
+    public function compileGetAllForeignKeys(): string
+    {
+        return 'select trim(constraint_schema) as constraint_schema,
+                       trim(constraint_name) as constraint_name,
+                       trim(table_schema) as table_schema,
+                       trim(table_name) as table_name
+                from qsys2.syscst
+                where constraint_type = \'FOREIGN KEY\' and constraint_schema = ?';
+    }
+
+    /**
+     * Compile a drop constraint statement for a table of a schema.
+     *
+     * @param string $schema
+     * @param string $table
+     * @param string $constraint
+     *
+     * @return string
+     */
+    public function compileDropConstraint(string $schema, string $table, string $constraint): string
+    {
+        return 'alter table ' . $this->wrapValue($schema) . '.' . $this->wrapValue($table)
+            . ' drop constraint ' . $this->wrapValue($constraint);
+    }
+
+    /**
+     * Compile a drop view statement for a schema-qualified view name.
+     *
+     * @param string $view
+     *
+     * @return string
+     */
+    public function compileDropView(string $view): string
+    {
+        return 'drop view ' . $view;
     }
 }

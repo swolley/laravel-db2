@@ -15,6 +15,12 @@ class FakePDO extends PDO
 
     public array $selectResults = [];
 
+    /** @var array<string, list<object>> Rows returned by statements whose SQL contains the key. */
+    public array $resultsByQuery = [];
+
+    /** @var list<array{0: string, 1: list<mixed>}> Every statement with the values bound to it. */
+    public array $bound = [];
+
     /** @var list<string> Every statement prepared, in order. */
     public array $preparedQueries = [];
 
@@ -32,6 +38,13 @@ class FakePDO extends PDO
             ? $this->exceptionToThrow
             : null;
         $statement->results = $this->selectResults;
+        foreach ($this->resultsByQuery as $needle => $rows) {
+            if (str_contains($query, $needle)) {
+                $statement->results = $rows;
+            }
+        }
+        $statement->log = &$this->bound;
+        $statement->query = $query;
 
         return $statement;
     }

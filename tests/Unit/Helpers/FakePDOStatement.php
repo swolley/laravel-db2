@@ -12,10 +12,19 @@ class FakePDOStatement extends PDOStatement
 
     public array $results = [];
 
+    public string $query = '';
+
+    /** @var list<array{0: string, 1: list<mixed>}> */
+    public array $log = [];
+
+    private array $values = [];
+
     public function __construct() {}
 
     public function bindValue($param, $value, $type = PDO::PARAM_STR): bool
     {
+        $this->values[] = $value;
+
         return true;
     }
 
@@ -24,6 +33,8 @@ class FakePDOStatement extends PDOStatement
         if ($this->exceptionToThrow) {
             throw $this->exceptionToThrow;
         }
+
+        $this->log[] = [$this->query, $this->values];
 
         return true;
     }
