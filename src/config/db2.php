@@ -90,6 +90,10 @@ return [
             'date_format' => 'Y-m-d H:i:s',
             // Used to confirm strings to UTF-8
             'from_encoding' => null,
+            // CCSID new char, varchar, text (clob), enum and set columns are created with
+            // (default null: the system default). 1208 means UTF-8. Lengths stay in bytes.
+            // Not the CCSID ODBC keyword below, which sets the client's encoding.
+            'ccsid' => null,
             // Can be used to overwrite the default result processor. E.g. My\Custom\DB2Processor::class
             // If you leave this empty the default processor wil be used.
             'odbc_keywords' => [

@@ -7,6 +7,7 @@ use Easi\DB2\Exceptions\TranslatedQueryException;
 use Illuminate\Database\Grammar;
 use Easi\DB2\Exceptions\TranslatedUniqueConstraintViolationException;
 use Exception;
+use InvalidArgumentException;
 use PDO;
 use Throwable;
 
@@ -40,9 +41,17 @@ class DB2Connection extends Connection
      * @var string
      */
     protected string $currentSchema;
+    /**
+     * The CCSID character and text columns are created with, from the `ccsid` option.
+     *
+     * @var int|null
+     */
+    protected ?int $columnCcsid;
 
     public function __construct(PDO|Closure $pdo, $database = '', $tablePrefix = '', array $config = [])
     {
+        $this->columnCcsid = static::parseColumnCcsid($config['ccsid'] ?? null);
+
         parent::__construct($pdo, $database, $tablePrefix, $config);
         $this->currentSchema = $this->defaultSchema = strtoupper($config['schema'] ?? null);
 
@@ -63,6 +72,50 @@ class DB2Connection extends Connection
     public function getDefaultSchema(): string
     {
         return $this->defaultSchema;
+    }
+
+    /**
+     * Get the CCSID new character and text columns are tagged with, or null to leave
+     * them to the system default.
+     *
+     * @return int|null
+     */
+    public function getColumnCcsid(): ?int
+    {
+        return $this->columnCcsid;
+    }
+
+    /**
+     * Parse the `ccsid` connection option strictly.
+     *
+     * Absent, null or an empty string (an unset environment variable) turns the option off.
+     * An integer, or a string of digits as env() returns it, between 1 and 65535 is a CCSID.
+     * Anything else is a configuration mistake and is refused rather than guessed at.
+     *
+     * @param mixed $value
+     *
+     * @return int|null
+     *
+     * @throws InvalidArgumentException
+     */
+    protected static function parseColumnCcsid(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value) && preg_match('/^[0-9]+$/', $value) === 1) {
+            $value = (int) $value;
+        }
+
+        if (is_int($value) && $value >= 1 && $value <= 65535) {
+            return $value;
+        }
+
+        throw new InvalidArgumentException(sprintf(
+            'The DB2 "ccsid" connection option must be an integer between 1 and 65535, or empty to leave it off; got %s.',
+            var_export($value, true)
+        ));
     }
 
     /**

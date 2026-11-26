@@ -456,7 +456,7 @@ class DB2Grammar extends Grammar
      */
     protected function typeChar(Fluent $column): string
     {
-        return "char({$column->length})";
+        return $this->withCcsid("char({$column->length})");
     }
 
     /**
@@ -468,7 +468,7 @@ class DB2Grammar extends Grammar
      */
     protected function typeString(Fluent $column): string
     {
-        return "varchar({$column->length})";
+        return $this->withCcsid("varchar({$column->length})");
     }
 
     /**
@@ -480,7 +480,7 @@ class DB2Grammar extends Grammar
     protected function typeTinyText(Fluent $column): string
     {
         $colLength = ($column->length ? $column->length : 255);
-        return "varchar($colLength)";
+        return $this->withCcsid("varchar($colLength)");
     }
 
     /**
@@ -495,7 +495,7 @@ class DB2Grammar extends Grammar
         // A varchar counts against DB2's 32766-byte row limit, so a few wide text columns
         // (e.g. failed_jobs) overflow it with SQL0101; a clob is stored off-row. Like the
         // framework's own grammars, the length is not applied.
-        return 'clob';
+        return $this->withCcsid('clob');
     }
 
     /**
@@ -507,7 +507,7 @@ class DB2Grammar extends Grammar
      */
     protected function typeMediumText(Fluent $column): string
     {
-        return 'clob';
+        return $this->withCcsid('clob');
     }
 
     /**
@@ -519,7 +519,7 @@ class DB2Grammar extends Grammar
      */
     protected function typeLongText(Fluent $column): string
     {
-        return "clob";
+        return $this->withCcsid('clob');
     }
 
     /**
@@ -739,7 +739,7 @@ class DB2Grammar extends Grammar
      */
     protected function typeUuid(Fluent $column): string
     {
-        return 'char(36)';
+        return $this->withCcsid('char(36)');
     }
 
     /**
@@ -750,7 +750,7 @@ class DB2Grammar extends Grammar
      */
     protected function typeJson(Fluent $column): string
     {
-        return 'clob';
+        return $this->withCcsid('clob');
     }
 
     /**
@@ -762,6 +762,24 @@ class DB2Grammar extends Grammar
     protected function typeJsonb(Fluent $column): string
     {
         return 'blob';
+    }
+
+    /**
+     * Tag a character or text data type with the connection's column CCSID, when one is set.
+     *
+     * The `ccsid` option only changes the encoding: lengths stay in bytes, so a varchar(10)
+     * in CCSID 1208 (UTF-8) holds 10 bytes, fewer characters when they are multi-byte.
+     * Numeric, date, binary and blob types never carry a CCSID.
+     *
+     * @param string $type
+     *
+     * @return string
+     */
+    protected function withCcsid(string $type): string
+    {
+        $ccsid = $this->connection->getColumnCcsid();
+
+        return $ccsid === null ? $type : $type . ' ccsid ' . $ccsid;
     }
 
     /**
