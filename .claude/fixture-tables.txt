@@ -9,3 +9,5 @@ order_lines
 customers
 users
 inventory
+# Laravel's own cache table; its name is a Db2 reserved word, used by the reserved table-name test.
+cache

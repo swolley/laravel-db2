@@ -77,6 +77,18 @@ describe('reserved word quoting', function () {
         expect($sql)->toBe('select * from products where "POSITION" > ?');
     });
 
+    it('quotes a reserved table name in create table and in select', function () {
+        $connection = quotingConnection(true);
+
+        $blueprint = new Blueprint($connection, 'cache', function (Blueprint $table) {
+            $table->create();
+            $table->string('key');
+        });
+
+        expect($blueprint->toSql()[0])->toStartWith('create table "CACHE" (')
+            ->and($connection->query()->from('cache')->toSql())->toBe('select * from "CACHE"');
+    });
+
     it('looks words up case-insensitively', function () {
         expect(ReservedWords::contains('Order'))->toBeTrue()
             ->and(ReservedWords::contains('sku'))->toBeFalse();
