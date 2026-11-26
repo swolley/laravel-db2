@@ -77,6 +77,9 @@ class DB2Grammar extends Grammar
     /**
      * Compile the query to determine if a given table exists.
      *
+     * Reads the QSYS2 catalog like the other introspection queries, counting base tables
+     * (SQL tables and physical files) only, as compileTables() lists them.
+     *
      * @param  string|null  $schema
      * @param  string  $table
      * @return string
@@ -84,7 +87,8 @@ class DB2Grammar extends Grammar
     public function compileTableExists($schema, $table): string
     {
         return sprintf(
-            'select count(*) as "exists" from information_schema.tables where table_schema = %s and table_name = %s',
+            'select count(*) as "exists" from qsys2.systables where table_schema = %s and table_name = %s'
+            . " and table_type in ('T', 'P')",
             $this->quoteString(strtoupper($schema ?? $this->connection->getDefaultSchema())),
             $this->quoteString(strtoupper($table))
         );

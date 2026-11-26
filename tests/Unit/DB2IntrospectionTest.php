@@ -74,6 +74,15 @@ describe('catalog queries', function () {
             ->and($sql)->toContain("table_name = 'PRODUCTS'");
     });
 
+    it('checks a table exists in QSYS2.SYSTABLES, base tables only', function () {
+        $sql = introspectionConnection()->getSchemaGrammar()->compileTableExists('inventory', 'products');
+
+        expect(strtolower($sql))->toContain('from qsys2.systables')
+            ->and(strtolower($sql))->not->toContain('information_schema')
+            ->and($sql)->toContain("table_schema = 'INVENTORY' and table_name = 'PRODUCTS'")
+            ->and(strtolower($sql))->toContain("table_type in ('t', 'p')");
+    });
+
     it('reads foreign keys from SYSREFCST with SYSKEYCST', function () {
         $sql = introspectionConnection()->getSchemaGrammar()->compileForeignKeys('inventory', 'order_lines');
 
@@ -169,6 +178,20 @@ describe('processors', function () {
             ['name' => 'pk_order_lines', 'columns' => ['order_id', 'line_no'], 'type' => null, 'unique' => true, 'primary' => true],
             ['name' => 'uq_order_lines_sku', 'columns' => ['sku'], 'type' => null, 'unique' => true, 'primary' => false],
             ['name' => 'ix_order_lines_sku_qty', 'columns' => ['sku', 'qty'], 'type' => null, 'unique' => false, 'primary' => false],
+        ]);
+    });
+
+    it('reads both unique flags of SYSINDEXES as unique', function () {
+        $indexes = introspectionConnection()->getPostProcessor()->processIndexes([
+            (object) ['name' => 'IX_PRODUCTS_SKU', 'column_name' => 'SKU', 'ordinal_position' => 1, 'kind' => 'I', 'is_unique' => 'U'],
+            (object) ['name' => 'IX_PRODUCTS_EAN', 'column_name' => 'EAN', 'ordinal_position' => 1, 'kind' => 'I', 'is_unique' => 'V'],
+            (object) ['name' => 'IX_PRODUCTS_NAME', 'column_name' => 'NAME', 'ordinal_position' => 1, 'kind' => 'I', 'is_unique' => 'D'],
+        ]);
+
+        expect(array_column($indexes, 'unique', 'name'))->toBe([
+            'ix_products_sku' => true,
+            'ix_products_ean' => true,
+            'ix_products_name' => false,
         ]);
     });
 
