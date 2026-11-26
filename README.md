@@ -66,6 +66,11 @@ Simply add this code at the end of your ``config/database.php`` file:
         // Wrap migrations in a transaction (default false). Needs journaled tables
         // and a commit mode other than *NONE on IBM i.
         'schema_transactions' => false,
+        // CCSID new char, varchar, text (clob), enum and set columns are created with
+        // (default null: the system default). 1208 means UTF-8. Lengths stay in bytes, so a
+        // multi-byte character takes more than one. Unlike the CCSID ODBC keyword below,
+        // which sets the client's encoding, this one is written into the column definition.
+        'ccsid' => null,
         // Can be used to overwrite the default result processor. E.g. My\Custom\DB2Processor::class
         // If you leave this empty the default processor wil be used. 
         'odbc_keywords' => [
