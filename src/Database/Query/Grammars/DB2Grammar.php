@@ -93,6 +93,28 @@ class DB2Grammar extends Grammar
     }
 
     /**
+     * Compile a "where like" clause. Case-insensitive unless caseSensitive is set,
+     * upper-casing both sides because DB2 has no ILIKE.
+     *
+     * @param Builder $query
+     * @param array{column: mixed, value: mixed, caseSensitive: bool, not: bool} $where
+     *
+     * @return string
+     */
+    protected function whereLike(Builder $query, $where): string
+    {
+        $column = $this->wrap($where['column']);
+        $parameter = $this->parameter($where['value']);
+        $operator = $where['not'] ? 'not like' : 'like';
+
+        if ($where['caseSensitive']) {
+            return "$column $operator $parameter";
+        }
+
+        return "upper($column) $operator upper($parameter)";
+    }
+
+    /**
      * Compile a select query into SQL.
      *
      * @param Builder $query
