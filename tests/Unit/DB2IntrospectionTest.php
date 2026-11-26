@@ -181,6 +181,20 @@ describe('processors', function () {
         ]);
     });
 
+    it('reads both unique flags of SYSINDEXES as unique', function () {
+        $indexes = introspectionConnection()->getPostProcessor()->processIndexes([
+            (object) ['name' => 'IX_PRODUCTS_SKU', 'column_name' => 'SKU', 'ordinal_position' => 1, 'kind' => 'I', 'is_unique' => 'U'],
+            (object) ['name' => 'IX_PRODUCTS_EAN', 'column_name' => 'EAN', 'ordinal_position' => 1, 'kind' => 'I', 'is_unique' => 'V'],
+            (object) ['name' => 'IX_PRODUCTS_NAME', 'column_name' => 'NAME', 'ordinal_position' => 1, 'kind' => 'I', 'is_unique' => 'D'],
+        ]);
+
+        expect(array_column($indexes, 'unique', 'name'))->toBe([
+            'ix_products_sku' => true,
+            'ix_products_ean' => true,
+            'ix_products_name' => false,
+        ]);
+    });
+
     it('drops the implicit index that backs a key constraint', function () {
         $indexes = introspectionConnection()->getPostProcessor()->processIndexes([
             (object) ['name' => 'PK_PRODUCTS', 'column_name' => 'SKU', 'ordinal_position' => 1, 'kind' => 'P', 'is_unique' => 'U'],

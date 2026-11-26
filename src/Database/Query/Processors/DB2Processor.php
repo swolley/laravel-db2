@@ -227,7 +227,8 @@ class DB2Processor extends Processor
             $groups[$key] ??= [
                 'name' => $name,
                 'kind' => $kind,
-                'unique' => $kind !== 'I' || strtoupper(trim((string) ($row['is_unique'] ?? ''))) === 'U',
+                // SYSINDEXES.IS_UNIQUE: U unique, V unique where not null, D duplicates allowed.
+                'unique' => $kind !== 'I' || in_array(strtoupper(trim((string) ($row['is_unique'] ?? ''))), ['U', 'V'], true),
                 'columns' => [],
             ];
             $groups[$key]['columns'][(int) ($row['ordinal_position'] ?? count($groups[$key]['columns']) + 1)]
