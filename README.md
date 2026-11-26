@@ -158,3 +158,9 @@ the VMS node instead of SQL. Configuration and the wire protocol: [docs/vms-rms-
 ## Usage
 
 Consult the [Laravel framework documentation](https://laravel.com/docs).
+
+## Credits
+
+The IBM i schema introspection (`Schema::getTables()`, `getViews()`, `getColumns()`, `getIndexes()`,
+`getForeignKeys()`) reads the `QSYS2` catalog. Its approach follows
+[emkcloud/laravel-iseries-db2](https://github.com/emkcloud/laravel-iseries-db2) by Massimo Della Rovere, MIT licensed.

@@ -11,6 +11,12 @@ use Illuminate\Database\Schema\Grammars\Grammar;
 use Illuminate\Database\Schema\Blueprint;
 
 /**
+ * Schema grammar for Db2 for i.
+ *
+ * The introspection queries (compileSchemas, compileTables, compileViews, compileColumns,
+ * compileIndexes, compileForeignKeys) read the QSYS2 catalog. Their approach follows
+ * emkcloud/laravel-iseries-db2 (MIT, Massimo Della Rovere), https://github.com/emkcloud/laravel-iseries-db2.
+ *
  * @property DB2Connection $connection
  */
 class DB2Grammar extends Grammar
@@ -76,11 +82,155 @@ class DB2Grammar extends Grammar
     /**
      * Compile the query to determine the list of columns.
      *
+     * Reads the column catalog, so a column is found whether or not it is part of an index.
+     *
      * @return string
      */
     public function compileColumnExists(): string
     {
-        return 'select column_name from information_schema.columns where table_schema = upper(?) and table_name = upper(?)';
+        return 'select column_name from qsys2.syscolumns where table_schema = upper(?) and table_name = upper(?) order by ordinal_position';
+    }
+
+    /**
+     * Compile the query to determine the schemas (libraries).
+     *
+     * @return string
+     */
+    public function compileSchemas(): string
+    {
+        return sprintf(
+            'select schema_name as "name", case when schema_name = upper(%s) then 1 else 0 end as "default" '
+            . 'from qsys2.sysschemas order by schema_name',
+            $this->quoteString($this->connection->getDefaultSchema())
+        );
+    }
+
+    /**
+     * Compile the query to determine the base tables (physical files and SQL tables).
+     *
+     * @param  string|string[]|null  $schema
+     * @return string
+     */
+    public function compileTables($schema): string
+    {
+        return 'select table_name as "name", table_schema as "schema", coalesce(long_comment, table_text) as "comment" '
+            . 'from qsys2.systables where ' . $this->compileCatalogSchemaClause($schema, 'table_schema')
+            . " and table_type in ('T', 'P') order by table_schema, table_name";
+    }
+
+    /**
+     * Compile the query to determine the views.
+     *
+     * @param  string|string[]|null  $schema
+     * @return string
+     */
+    public function compileViews($schema): string
+    {
+        return 'select table_name as "name", table_schema as "schema", view_definition as "definition" '
+            . 'from qsys2.sysviews where ' . $this->compileCatalogSchemaClause($schema, 'table_schema')
+            . ' order by table_schema, table_name';
+    }
+
+    /**
+     * Compile the query to determine the columns of a table.
+     *
+     * @param  string|null  $schema
+     * @param  string  $table
+     * @return string
+     */
+    public function compileColumns($schema, $table): string
+    {
+        return sprintf(
+            'select column_name as "name", data_type as "type_name", length as "length", '
+            . 'numeric_scale as "numeric_scale", is_nullable as "is_nullable", column_default as "column_default", '
+            . 'has_default as "has_default", is_identity as "is_identity", coalesce(long_comment, column_text) as "comment" '
+            . 'from qsys2.syscolumns where %s and table_name = upper(%s) order by ordinal_position',
+            $this->compileCatalogSchemaClause($schema, 'table_schema'),
+            $this->quoteString($table)
+        );
+    }
+
+    /**
+     * Compile the query to determine the indexes of a table.
+     *
+     * Two sources are merged: SQL indexes (SYSINDEXES with SYSKEYS), and the primary key and
+     * unique constraints (SYSCST with SYSKEYCST), which IBM i keeps as constraints.
+     * Each row is one key column. "kind" is I (index), P (primary key) or U (unique constraint).
+     *
+     * @param  string|null  $schema
+     * @param  string  $table
+     * @return string
+     */
+    public function compileIndexes($schema, $table): string
+    {
+        return sprintf(
+            'select i.index_name as "name", k.column_name as "column_name", k.ordinal_position as "ordinal_position", '
+            . "'I' as \"kind\", i.is_unique as \"is_unique\" "
+            . 'from qsys2.sysindexes i join qsys2.syskeys k on k.index_schema = i.index_schema and k.index_name = i.index_name '
+            . 'where %1$s and i.table_name = upper(%2$s) '
+            . 'union all '
+            . 'select c.constraint_name, k.column_name, k.ordinal_position, '
+            . "case c.constraint_type when 'PRIMARY KEY' then 'P' else 'U' end, 'U' "
+            . 'from qsys2.syscst c join qsys2.syskeycst k on k.constraint_schema = c.constraint_schema and k.constraint_name = c.constraint_name '
+            . "where %3\$s and c.table_name = upper(%2\$s) and c.constraint_type in ('PRIMARY KEY', 'UNIQUE') "
+            . 'order by 1, 3',
+            $this->compileCatalogSchemaClause($schema, 'i.table_schema'),
+            $this->quoteString($table),
+            $this->compileCatalogSchemaClause($schema, 'c.table_schema')
+        );
+    }
+
+    /**
+     * Compile the query to determine the foreign keys of a table.
+     *
+     * Each row is one key column pair: the referencing column and the column it references,
+     * with the parent table resolved through the referenced constraint.
+     *
+     * @param  string|null  $schema
+     * @param  string  $table
+     * @return string
+     */
+    public function compileForeignKeys($schema, $table): string
+    {
+        return sprintf(
+            'select c.constraint_name as "name", fk.column_name as "column_name", fk.ordinal_position as "ordinal_position", '
+            . 'pc.table_schema as "foreign_schema", pc.table_name as "foreign_table", pk.column_name as "foreign_column", '
+            . 'r.update_rule as "update_rule", r.delete_rule as "delete_rule" '
+            . 'from qsys2.syscst c '
+            . 'join qsys2.syskeycst fk on fk.constraint_schema = c.constraint_schema and fk.constraint_name = c.constraint_name '
+            . 'join qsys2.sysrefcst r on r.constraint_schema = c.constraint_schema and r.constraint_name = c.constraint_name '
+            . 'join qsys2.syscst pc on pc.constraint_schema = r.unique_constraint_schema and pc.constraint_name = r.unique_constraint_name '
+            . 'join qsys2.syskeycst pk on pk.constraint_schema = r.unique_constraint_schema '
+            . 'and pk.constraint_name = r.unique_constraint_name and pk.ordinal_position = fk.ordinal_position '
+            . "where c.constraint_type = 'FOREIGN KEY' and %s and c.table_name = upper(%s) "
+            . 'order by c.constraint_name, fk.ordinal_position',
+            $this->compileCatalogSchemaClause($schema, 'c.table_schema'),
+            $this->quoteString($table)
+        );
+    }
+
+    /**
+     * Compile a catalog predicate on a schema column.
+     *
+     * A null or empty schema means the connection's default schema, an array becomes an IN list.
+     *
+     * @param  string|string[]|null  $schema
+     * @param  string  $column
+     * @return string
+     */
+    protected function compileCatalogSchemaClause($schema, string $column): string
+    {
+        $schemas = array_values(array_filter((array) $schema, fn ($name) => $name !== null && $name !== ''));
+
+        if ($schemas === []) {
+            $schemas = [$this->connection->getDefaultSchema()];
+        }
+
+        $quoted = array_map(fn ($name) => 'upper(' . $this->quoteString($name) . ')', $schemas);
+
+        return count($quoted) === 1
+            ? $column . ' = ' . $quoted[0]
+            : $column . ' in (' . implode(', ', $quoted) . ')';
     }
 
     /**
