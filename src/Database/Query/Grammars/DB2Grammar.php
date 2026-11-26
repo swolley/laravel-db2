@@ -489,6 +489,9 @@ class DB2Grammar extends Grammar
     /**
      * Wrap the given JSON selector as a JSON_VALUE call in lax mode.
      *
+     * The result is declared as a VARCHAR: left implicit, the returned type may be a LOB
+     * on IBM i, which cannot be compared, ordered or grouped like a string.
+     *
      * @param  string  $value
      * @return string
      */
@@ -496,7 +499,7 @@ class DB2Grammar extends Grammar
     {
         [$field, $path] = $this->wrapJsonFieldAndPath($value);
 
-        return 'JSON_VALUE('.$field.$path.')';
+        return 'JSON_VALUE('.$field.$path.' RETURNING VARCHAR(4000))';
     }
 
     /**
