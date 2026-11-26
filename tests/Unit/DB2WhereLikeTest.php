@@ -13,7 +13,7 @@ function useWhereLikeTestConnection(): DB2Connection
 it('compiles a case-insensitive like by upper-casing both sides', function () {
     $query = useWhereLikeTestConnection()->table('products')->whereLike('name', '%ab%');
 
-    expect($query->toSql())->toBe('select * from products where upper(name) like upper(?)')
+    expect($query->toSql())->toBe('select * from products where upper(name) like upper(cast(? as varchar(32672)))')
         ->and($query->getBindings())->toBe(['%ab%']);
 });
 
@@ -27,7 +27,7 @@ it('compiles a case-sensitive like as a plain like', function () {
 it('compiles a negated case-insensitive like', function () {
     $query = useWhereLikeTestConnection()->table('products')->whereNotLike('name', '%ab%');
 
-    expect($query->toSql())->toBe('select * from products where upper(name) not like upper(?)');
+    expect($query->toSql())->toBe('select * from products where upper(name) not like upper(cast(? as varchar(32672)))');
 });
 
 it('compiles a negated case-sensitive like as a plain not like', function () {
@@ -41,6 +41,6 @@ it('joins an or where like with or', function () {
         ->where('sku', 'ABC-1')
         ->orWhereLike('name', '%ab%');
 
-    expect($query->toSql())->toBe('select * from products where sku = ? or upper(name) like upper(?)')
+    expect($query->toSql())->toBe('select * from products where sku = ? or upper(name) like upper(cast(? as varchar(32672)))')
         ->and($query->getBindings())->toBe(['ABC-1', '%ab%']);
 });

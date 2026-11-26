@@ -94,7 +94,8 @@ class DB2Grammar extends Grammar
 
     /**
      * Compile a "where like" clause. Case-insensitive unless caseSensitive is set,
-     * upper-casing both sides because DB2 has no ILIKE.
+     * upper-casing both sides because DB2 has no ILIKE. The case-insensitive pattern
+     * marker is cast because DB2 rejects an untyped parameter marker inside a function (SQL0418).
      *
      * @param Builder $query
      * @param array{column: mixed, value: mixed, caseSensitive: bool, not: bool} $where
@@ -111,7 +112,7 @@ class DB2Grammar extends Grammar
             return "$column $operator $parameter";
         }
 
-        return "upper($column) $operator upper($parameter)";
+        return "upper($column) $operator upper(cast($parameter as varchar(32672)))";
     }
 
     /**
