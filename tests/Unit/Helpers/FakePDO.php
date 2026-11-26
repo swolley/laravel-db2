@@ -13,6 +13,9 @@ class FakePDO extends PDO
     /** When set, the exception is only thrown by statements whose SQL contains this. */
     public ?string $throwOnlyFor = null;
 
+    /** When not empty, only the prepared statements at these 1-based positions throw. */
+    public array $throwOnStatements = [];
+
     public array $selectResults = [];
 
     /** @var list<string> Every statement prepared, in order. */
@@ -28,9 +31,9 @@ class FakePDO extends PDO
         $this->preparedQueries[] = $query;
 
         $statement = new FakePDOStatement;
-        $statement->exceptionToThrow = $this->throwOnlyFor === null || str_contains($query, $this->throwOnlyFor)
-            ? $this->exceptionToThrow
-            : null;
+        $matches = ($this->throwOnlyFor === null || str_contains($query, $this->throwOnlyFor))
+            && ($this->throwOnStatements === [] || in_array(count($this->preparedQueries), $this->throwOnStatements, true));
+        $statement->exceptionToThrow = $matches ? $this->exceptionToThrow : null;
         $statement->results = $this->selectResults;
 
         return $statement;

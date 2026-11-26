@@ -487,4 +487,16 @@ class DB2Grammar extends Grammar
     }
 
 
+
+    /**
+     * Compile the random statement into SQL.
+     *
+     * @param string|int $seed
+     *
+     * @return string
+     */
+    public function compileRandom($seed): string
+    {
+        return $seed === '' || $seed === null ? 'RAND()' : 'RAND(' . (int) $seed . ')';
+    }
 }

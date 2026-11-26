@@ -19,6 +19,7 @@ use Easi\DB2\Database\Query\Processors\DB2ZOSProcessor;
 use Easi\DB2\Database\Query\Grammars\DB2Grammar as QueryGrammar;
 use Easi\DB2\Database\Schema\Grammars\DB2Grammar as SchemaGrammar;
 use Easi\DB2\Database\Schema\Grammars\DB2ExpressCGrammar;
+use PDOException;
 use PDOStatement;
 
 /**
@@ -138,7 +139,9 @@ class DB2Connection extends Connection
 
     protected function isUniqueConstraintError(Exception $exception): bool
     {
-        return stripos($exception->getMessage(), "SQL0803") !== false;
+        $sqlState = $exception instanceof PDOException ? ($exception->errorInfo[0] ?? null) : null;
+
+        return $sqlState === '23505' || stripos($exception->getMessage(), "SQL0803") !== false;
     }
 
     /**
