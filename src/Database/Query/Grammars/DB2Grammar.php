@@ -105,7 +105,8 @@ class DB2Grammar extends Grammar
     /**
      * Compile a "where like" clause. Case-insensitive unless caseSensitive is set,
      * upper-casing both sides because DB2 has no ILIKE. The case-insensitive pattern
-     * marker is cast because DB2 rejects an untyped parameter marker inside a function (SQL0418).
+     * marker is cast because DB2 rejects an untyped parameter marker inside a function (SQL0418);
+     * the cast is a character type sized from the pattern, as the upsert casts are.
      *
      * @param Builder $query
      * @param array{column: mixed, value: mixed, caseSensitive: bool, not: bool} $where
@@ -115,14 +116,18 @@ class DB2Grammar extends Grammar
     protected function whereLike(Builder $query, $where): string
     {
         $column = $this->wrap($where['column']);
-        $parameter = $this->parameter($where['value']);
         $operator = $where['not'] ? 'not like' : 'like';
 
         if ($where['caseSensitive']) {
-            return "$column $operator $parameter";
+            return "$column $operator ".$this->parameter($where['value']);
         }
 
-        return "upper($column) $operator upper(cast($parameter as varchar(32672)))";
+        // A pattern is matched as text whatever PHP type it arrives as, so it is typed from
+        // its string form: an integer would otherwise be cast to BIGINT, which upper() rejects.
+        $pattern = $where['value'];
+        $type = DB2ParameterType::forColumn([is_scalar($pattern) ? (string) $pattern : $pattern]);
+
+        return "upper($column) $operator upper(".$this->parameterWithType($pattern, $type).')';
     }
 
     /**

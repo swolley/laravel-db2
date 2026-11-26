@@ -13,7 +13,7 @@ function useWhereLikeTestConnection(): DB2Connection
 it('compiles a case-insensitive like by upper-casing both sides', function () {
     $query = useWhereLikeTestConnection()->table('products')->whereLike('name', '%ab%');
 
-    expect($query->toSql())->toBe('select * from products where upper(name) like upper(cast(? as varchar(32672)))')
+    expect($query->toSql())->toBe('select * from products where upper(name) like upper(cast(? as VARCHAR(32)))')
         ->and($query->getBindings())->toBe(['%ab%']);
 });
 
@@ -27,7 +27,7 @@ it('compiles a case-sensitive like as a plain like', function () {
 it('compiles a negated case-insensitive like', function () {
     $query = useWhereLikeTestConnection()->table('products')->whereNotLike('name', '%ab%');
 
-    expect($query->toSql())->toBe('select * from products where upper(name) not like upper(cast(? as varchar(32672)))');
+    expect($query->toSql())->toBe('select * from products where upper(name) not like upper(cast(? as VARCHAR(32)))');
 });
 
 it('compiles a negated case-sensitive like as a plain not like', function () {
@@ -41,6 +41,20 @@ it('joins an or where like with or', function () {
         ->where('sku', 'ABC-1')
         ->orWhereLike('name', '%ab%');
 
-    expect($query->toSql())->toBe('select * from products where sku = ? or upper(name) like upper(cast(? as varchar(32672)))')
+    expect($query->toSql())->toBe('select * from products where sku = ? or upper(name) like upper(cast(? as VARCHAR(32)))')
         ->and($query->getBindings())->toBe(['ABC-1', '%ab%']);
+});
+
+it('sizes the pattern cast from the pattern, as the upsert casts are sized', function () {
+    $pattern = '%' . str_repeat('a', 40) . '%';
+    $query = useWhereLikeTestConnection()->table('products')->whereLike('name', $pattern);
+
+    expect($query->toSql())->toBe('select * from products where upper(name) like upper(cast(? as VARCHAR(64)))');
+});
+
+it('casts a numeric pattern to a character type', function () {
+    $query = useWhereLikeTestConnection()->table('products')->whereLike('sku', 12);
+
+    expect($query->toSql())->toBe('select * from products where upper(sku) like upper(cast(? as VARCHAR(32)))')
+        ->and($query->getBindings())->toBe([12]);
 });
