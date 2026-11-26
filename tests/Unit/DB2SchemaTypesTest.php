@@ -61,3 +61,17 @@ describe('float columns', function () {
             ->toBe('create table products (score double not null)');
     });
 });
+
+describe('boolean check', function () {
+    it('wraps the column name inside the check', function () {
+        expect(typesSql(fn (Blueprint $t) => $t->boolean('is"on')))
+            ->toContain('check(is""on in(0, 1))');
+    });
+});
+
+describe('string defaults', function () {
+    it('escapes a single quote inside a string default', function () {
+        expect(typesSql(fn (Blueprint $t) => $t->string('label')->default("it's")))
+            ->toContain("default 'it''s'");
+    });
+});

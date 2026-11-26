@@ -649,7 +649,7 @@ class DB2Grammar extends Grammar
     {
         $definition = 'smallint constraint %s_%s_%s check(%s in(0, 1)) %s';
 
-        return sprintf($definition, $column->type, $column->prefix, $column->name, $column->name, is_null($column->default) ? ' default 0' : '');
+        return sprintf($definition, $column->type, $column->prefix, $column->name, $this->wrap($column), is_null($column->default) ? ' default 0' : '');
     }
 
     /**
@@ -972,7 +972,7 @@ class DB2Grammar extends Grammar
             return $value;
         }
 
-        return "'" . strval($value) . "'";
+        return "'" . str_replace("'", "''", strval($value)) . "'";
     }
 
     /**

@@ -4,6 +4,7 @@ namespace Easi\DB2\Database\Query;
 
 use Illuminate\Database\Query\Builder as BaseBuilder;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Arr;
 
 /**
  * Class Builder
@@ -58,7 +59,7 @@ class Builder extends BaseBuilder
             return 0;
         }
 
-        if (!is_array(array_first($values))) {
+        if (!is_array(Arr::first($values))) {
             $values = [$values];
         }
 
