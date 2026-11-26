@@ -225,13 +225,22 @@ describe('through the schema builder', function () {
         $builder = $connection->getSchemaBuilder();
 
         expect($builder->hasColumn('products', 'sku'))->toBeTrue()
-            ->and($builder->getColumnListing('products'))->toBe(['SKU', 'DESCRIPTION']);
+            ->and($builder->getColumnListing('products'))->toBe(['sku', 'description']);
 
         $sql = strtolower(introspectionPdo($connection)->preparedQueries[0]);
 
         expect($sql)->toContain('qsys2.syscolumns')
             ->and($sql)->not->toContain('index')
             ->and($sql)->not->toContain('syskeys');
+    });
+
+    it('lists columns in lower case and splits schema.table', function () {
+        $connection = introspectionConnection([(object) ['column_name' => 'SKU']]);
+
+        $columns = $connection->getSchemaBuilder()->getColumnListing('inventory.products');
+
+        expect($columns)->toBe(['sku'])
+            ->and(introspectionPdo($connection)->preparedQueries)->toHaveCount(1);
     });
 
     it('returns introspection results in Laravel shapes from getTables', function () {

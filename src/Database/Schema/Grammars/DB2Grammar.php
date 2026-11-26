@@ -15,7 +15,8 @@ use Illuminate\Database\Schema\Blueprint;
  *
  * The introspection queries (compileSchemas, compileTables, compileViews, compileColumns,
  * compileIndexes, compileForeignKeys) read the QSYS2 catalog. Their approach follows
- * emkcloud/laravel-iseries-db2 (MIT, Massimo Della Rovere), https://github.com/emkcloud/laravel-iseries-db2.
+ * emkcloud/laravel-iseries-db2, https://github.com/emkcloud/laravel-iseries-db2, MIT licensed.
+ * Copyright (c) 2025 Massimo Della Rovere. The MIT permission notice is reproduced in this package's README.
  *
  * @property DB2Connection $connection
  */
