@@ -1040,4 +1040,16 @@ EOT;
                 from information_schema.tables
                 where table_schema = upper(?) and table_type = \'BASE TABLE\'';
     }
+
+    /**
+     * Whether migrations are wrapped in a transaction. Opt-in through the
+     * connection's `schema_transactions` option: it needs journaled tables and a
+     * commit mode other than *NONE on IBM i.
+     *
+     * @return bool
+     */
+    public function supportsSchemaTransactions(): bool
+    {
+        return (bool) $this->connection->getConfig('schema_transactions');
+    }
 }

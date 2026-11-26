@@ -90,6 +90,9 @@ return [
             'date_format' => 'Y-m-d H:i:s',
             // Used to confirm strings to UTF-8
             'from_encoding' => null,
+            // Wrap migrations in a transaction (default false). Needs journaled tables
+            // and a commit mode other than *NONE on IBM i.
+            'schema_transactions' => false,
             // Can be used to overwrite the default result processor. E.g. My\Custom\DB2Processor::class
             // If you leave this empty the default processor wil be used.
             'odbc_keywords' => [
