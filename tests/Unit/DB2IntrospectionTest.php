@@ -74,6 +74,15 @@ describe('catalog queries', function () {
             ->and($sql)->toContain("table_name = 'PRODUCTS'");
     });
 
+    it('checks a table exists in QSYS2.SYSTABLES, base tables only', function () {
+        $sql = introspectionConnection()->getSchemaGrammar()->compileTableExists('inventory', 'products');
+
+        expect(strtolower($sql))->toContain('from qsys2.systables')
+            ->and(strtolower($sql))->not->toContain('information_schema')
+            ->and($sql)->toContain("table_schema = 'INVENTORY' and table_name = 'PRODUCTS'")
+            ->and(strtolower($sql))->toContain("table_type in ('t', 'p')");
+    });
+
     it('reads foreign keys from SYSREFCST with SYSKEYCST', function () {
         $sql = introspectionConnection()->getSchemaGrammar()->compileForeignKeys('inventory', 'order_lines');
 
