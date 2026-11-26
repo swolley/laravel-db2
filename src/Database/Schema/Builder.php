@@ -44,7 +44,7 @@ class Builder extends \Illuminate\Database\Schema\Builder
         ]);
 
         return array_values(array_map(function($r) {
-            return $r->column_name;
+            return strtolower(trim((string) $r->column_name));
         }, $results));
     }
 
