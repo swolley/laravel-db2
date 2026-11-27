@@ -10,6 +10,7 @@ use Easi\DB2\Database\Gateway\GatewayConnection;
 use Easi\DB2\Database\Gateway\Transport\FakeTransport;
 use Easi\DB2\Database\Gateway\Transport\SocketTransport;
 use Easi\DB2\Queue\DB2Connector;
+use Illuminate\Database\DatabaseManager;
 use Illuminate\Queue\QueueManager;
 use Illuminate\Support\ServiceProvider;
 
@@ -46,47 +47,61 @@ class DB2ServiceProvider extends ServiceProvider
     public function register(): void
     {
         // get the configs
-        $conns = is_array(config('db2.connections')) ? config('db2.connections') : [];
+        $config = $this->app['config'];
+        $conns = is_array($config->get('db2.connections')) ? $config->get('db2.connections') : [];
 
         // Add my database configurations to the default set of configurations
-        config(['database.connections' => array_merge($conns, config('database.connections'))]);
+        $config->set('database.connections', array_merge($conns, $config->get('database.connections')));
 
         // Extend the connections with pdo_odbc and pdo_ibm drivers
-        foreach (config('database.connections') as $conn => $config) {
+        $db2Connections = [];
+        foreach ($config->get('database.connections') as $conn => $connConfig) {
             // Only use configurations that feature an "odbc", "ibm" or "odbczos" driver
-            if (!isset($config['driver']) || !in_array($config['driver'], [
+            if (isset($connConfig['driver']) && in_array($connConfig['driver'], [
                     'db2_ibmi_odbc',
                     'db2_ibmi_ibm',
                     'db2_zos_odbc',
                     'db2_expressc_odbc',
                 ])
             ) {
-                continue;
+                $db2Connections[] = $conn;
             }
-
-            // Create a connector
-            $this->app['db']->extend($conn, function($config, $name) {
-                $config['name'] = $name;
-                $connector = match ($config['driver']) {
-                    'db2_expressc_odbc', 'db2_ibmi_odbc' => new ODBCConnector(),
-                    'db2_zos_odbc' => new ODBCZOSConnector(),
-                    default => new IBMConnector(),
-                };
-
-                $db2Connection = $connector->connect($config);
-
-                return new DB2Connection($db2Connection, $config["database"], $config["prefix"], $config);
-            });
         }
 
-        // Registered by driver, not by connection name, so a connection switched to it at runtime resolves too.
-        $this->app['db']->extend('vms_rms_gateway', function (array $config, string $name) {
-            $transport = ($config['transport'] ?? 'socket') === 'fake'
-                ? new FakeTransport()
-                : new SocketTransport($config['host'], (int) $config['port'], (float) ($config['timeout'] ?? 10));
+        $extendManager = function (DatabaseManager $manager) use ($db2Connections): void {
+            foreach ($db2Connections as $conn) {
+                // Create a connector
+                $manager->extend($conn, function ($config, $name) {
+                    $config['name'] = $name;
+                    $connector = match ($config['driver']) {
+                        'db2_expressc_odbc', 'db2_ibmi_odbc' => new ODBCConnector(),
+                        'db2_zos_odbc' => new ODBCZOSConnector(),
+                        default => new IBMConnector(),
+                    };
 
-            return new GatewayConnection($transport, array_merge($config, ['name' => $name]));
-        });
+                    $db2Connection = $connector->connect($config);
+
+                    return new DB2Connection($db2Connection, $config["database"], $config["prefix"], $config);
+                });
+            }
+
+            // Registered by driver, not by connection name, so a connection switched to it at runtime resolves too.
+            $manager->extend('vms_rms_gateway', function (array $config, string $name) {
+                $transport = ($config['transport'] ?? 'socket') === 'fake'
+                    ? new FakeTransport()
+                    : new SocketTransport($config['host'], (int) $config['port'], (float) ($config['timeout'] ?? 10));
+
+                return new GatewayConnection($transport, array_merge($config, ['name' => $name]));
+            });
+        };
+
+        // Another provider may rebind `db` after this one (eloquent-spatial re-runs DatabaseServiceProvider::register),
+        // so every manager built for `db` from now on gets the extensions too.
+        if ($this->app->resolved('db')) {
+            $extendManager($this->app->make('db'));
+        }
+
+        $this->app->afterResolving('db', $extendManager);
 
         $this->app->extend(
             'queue',
